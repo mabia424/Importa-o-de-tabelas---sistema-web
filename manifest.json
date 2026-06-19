@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "Exportar Sistema",
+  "version": "1.0.0",
+  "description": "Extrai dados do sistema Adekz para Excel",
+  
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "downloads",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "*://adekz.jawplasticos.com.br/*"
+  ],
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Exportar dados"
+  }
+}

@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    body {
+      width: 320px;
+      padding: 20px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+      margin: 0;
+      background: #3f6e53;
+    }
+    
+    h1 {
+      font-size: 16px;
+      color: #000000;
+      margin: 0 0 15px 0;
+      text-align: center;
+    }
+    
+    button {
+      width: 100%;
+      padding: 14px;
+      font-size: 14px;
+      font-weight: bold;
+      color: rgb(255, 255, 255);
+      background: #4CAF50;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    
+    button:hover {
+      background: #2f4e7e;
+    }
+    
+    button:disabled {
+      background: #cccccc;
+      cursor: not-allowed;
+    }
+    
+    #status {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #ffffff;
+      min-height: 40px;
+      line-height: 1.4;
+      white-space: pre-line;
+    }
+ </style>
+</head>
+<body>
+  <h1>Exportar abas abertas de Adekz</h1>
+  <button id="btnExportar">Exportar Excel</button>
+  <div id="status">Abra as páginas do sistema antes de exportar.</div>
+  <div id="contador"></div>
+  
+  <!-- SheetJS PRIMEIRO -->
+  <script src="xlsx.full.min.js"></script>
+  
+  <!-- popup.js DEPOIS -->
+  <script src="popup.js"></script>
+</body>
+</html>
