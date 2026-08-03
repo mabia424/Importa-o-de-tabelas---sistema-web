@@ -29,11 +29,23 @@ document.addEventListener('DOMContentLoaded', function() {
   
   atualizarContador();
   
-  function nomeValidoExcel(titulo, index) {
+  // Gera um nome válido pra aba do Excel, só adicionando sufixo numérico
+  // se o nome já tiver sido usado antes (evita duplicidade real, sem
+  // poluir nomes que já são únicos).
+  function nomeValidoExcel(titulo, nomesUsados) {
     let nome = titulo || 'Aba';
     nome = nome.replace(/[\\/*?:[\]]/g, '').trim();
-    if (nome.length > 25) nome = nome.substring(0, 22) + '...';
-    return `${nome}_${index + 1}`.substring(0, 31);
+    if (nome.length > 28) nome = nome.substring(0, 28);
+
+    let nomeFinal = nome;
+    let contador = 1;
+    while (nomesUsados.has(nomeFinal.toLowerCase())) {
+      contador++;
+      const sufixo = `_${contador}`;
+      nomeFinal = (nome.substring(0, 31 - sufixo.length) + sufixo);
+    }
+    nomesUsados.add(nomeFinal.toLowerCase());
+    return nomeFinal;
   }
   
   btnExportar.addEventListener('click', async function() {
@@ -63,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
       
       const workbook = XLSX.utils.book_new();
       let abasExportadas = 0;
+      const nomesUsados = new Set();
       
       for (let i = 0; i < abasDoSistema.length; i++) {
         const aba = abasDoSistema[i];
@@ -80,7 +93,7 @@ document.addEventListener('DOMContentLoaded', function() {
           
           if (dados && dados.length > 0) {
             const worksheet = XLSX.utils.aoa_to_sheet(dados);
-            const nome = nomeValidoExcel(nomeAba || aba.title, i);
+            const nome = nomeValidoExcel(nomeAba || aba.title, nomesUsados);
             XLSX.utils.book_append_sheet(workbook, worksheet, nome);
             abasExportadas++;
           }
@@ -167,9 +180,15 @@ function extrairTabelaDaPagina(colunasDesejadas) {
     if (textos.some(t => t !== '')) dados.push(textos);
   });
 
-  // Nome da aba: tenta achar um título de verdade na página
-  const heading = document.querySelector('h1, h2, .page-title, .titulo-pagina, .breadcrumb-item.active');
-  const nomeAba = heading ? heading.innerText.trim() : document.title;
+  // Nome da aba: pega o ÚLTIMO <h1> válido da página (ignorando
+  // placeholders tipo "Carregando dados..."), que é o título real da tela.
+  const candidatosH1 = Array.from(document.querySelectorAll('h1'))
+    .map(el => el.innerText.trim())
+    .filter(t => t && !t.toLowerCase().includes('carregando'));
+
+  const nomeAba = candidatosH1.length > 0
+    ? candidatosH1[candidatosH1.length - 1]
+    : document.title;
 
   return { dados, nomeAba };
 }
