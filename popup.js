@@ -9,6 +9,10 @@ document.addEventListener('DOMContentLoaded', function() {
   const contador = document.getElementById('contador');
   
   const DOMINIO = 'adekz.jawplasticos.com.br';
+
+  // Defina aqui as colunas que você quer no Excel (vazio = pega todas)
+  // Ex: ['código', 'descrição', 'quantidade', 'saldo']
+  const COLUNAS_DESEJADAS = [];
   
   // VERIFICA se XLSX está carregado
   if (typeof XLSX === 'undefined') {
@@ -68,15 +72,16 @@ document.addEventListener('DOMContentLoaded', function() {
         try {
           const resultado = await chrome.scripting.executeScript({
             target: { tabId: aba.id },
-            func: extrairTabelaDaPagina
+            func: extrairTabelaDaPagina,
+            args: [COLUNAS_DESEJADAS]
           });
           
-          const dados = resultado[0]?.result;
+          const { dados, nomeAba } = resultado[0]?.result || {};
           
           if (dados && dados.length > 0) {
             const worksheet = XLSX.utils.aoa_to_sheet(dados);
-            const nomeAba = nomeValidoExcel(aba.title, i);
-            XLSX.utils.book_append_sheet(workbook, worksheet, nomeAba);
+            const nome = nomeValidoExcel(nomeAba || aba.title, i);
+            XLSX.utils.book_append_sheet(workbook, worksheet, nome);
             abasExportadas++;
           }
           
@@ -112,23 +117,59 @@ document.addEventListener('DOMContentLoaded', function() {
   });
 });
 
-function extrairTabelaDaPagina() {
+// Esta função roda DENTRO da página do Adekz (via chrome.scripting.executeScript),
+// não tem acesso ao escopo acima.
+function extrairTabelaDaPagina(colunasDesejadas) {
+  // Pega o valor "de verdade" da célula, seja texto ou input/select/textarea
+  function valorCelula(celula) {
+    const campo = celula.querySelector('input, select, textarea');
+    if (campo) {
+      if (campo.tagName === 'SELECT') {
+        return campo.options[campo.selectedIndex]?.text.trim() || '';
+      }
+      return (campo.value || '').trim();
+    }
+    return celula.innerText.trim();
+  }
+
   const tabelas = document.querySelectorAll('table');
-  if (tabelas.length === 0) return [];
-  
+  if (tabelas.length === 0) return { dados: [], nomeAba: document.title };
+
   let maior = tabelas[0];
   let max = 0;
-  
   tabelas.forEach(t => {
     const n = t.querySelectorAll('tr').length;
     if (n > max) { max = n; maior = t; }
   });
-  
+
+  const linhas = Array.from(maior.querySelectorAll('tr'));
+  if (linhas.length === 0) return { dados: [], nomeAba: document.title };
+
+  // Cabeçalho: primeira linha com <th>, ou primeira linha mesmo
+  const cabecalhoTr = linhas.find(tr => tr.querySelector('th')) || linhas[0];
+  const cabecalho = Array.from(cabecalhoTr.querySelectorAll('th, td')).map(c => c.innerText.trim());
+
+  // Se colunasDesejadas foi passado, acha os índices correspondentes
+  let indicesFiltrados = null;
+  if (colunasDesejadas && colunasDesejadas.length > 0) {
+    indicesFiltrados = colunasDesejadas
+      .map(nomeCol => cabecalho.findIndex(h => h.toLowerCase().includes(nomeCol.toLowerCase())))
+      .filter(idx => idx !== -1);
+  }
+
   const dados = [];
-  maior.querySelectorAll('tr').forEach(tr => {
-    const textos = Array.from(tr.querySelectorAll('th, td')).map(c => c.innerText.trim());
+  linhas.forEach(tr => {
+    const celulas = Array.from(tr.querySelectorAll('th, td'));
+    let textos = celulas.map(valorCelula);
+    if (indicesFiltrados) {
+      textos = indicesFiltrados.map(idx => textos[idx] ?? '');
+    }
     if (textos.some(t => t !== '')) dados.push(textos);
   });
-  
-  return dados;
+
+  // Nome da aba: tenta achar um título de verdade na página
+  const heading = document.querySelector('h1, h2, .page-title, .titulo-pagina, .breadcrumb-item.active');
+  const nomeAba = heading ? heading.innerText.trim() : document.title;
+
+  return { dados, nomeAba };
 }
